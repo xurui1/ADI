@@ -1,0 +1,330 @@
+\documentclass[11pt]{article} % use larger type; default would be 10pt
+\usepackage{mathrsfs,amsmath}
+\usepackage{gensymb}
+\usepackage{graphicx}
+\usepackage{float}
+\graphicspath{ {images/} }
+\usepackage{fixltx2e} %for subscript
+\usepackage[margin=0.8in]{geometry}
+\setlength{\parskip}{\baselineskip}%
+\setlength{\voffset}{0in}
+%\pagenumbering{gobble}
+
+\title{The ADI method in 2-dimensional cylindrical coordinates (angular symmetry)}
+\author{Rui Xu}
+%\date{} % Activate to display a given date or no date (if empty),
+         % otherwise the current date is printed 
+         
+\begin{document}
+
+\maketitle
+
+\section*{The modified Diffusion Equation}
+ 
+ We wish to solve a modified diffusion equation in a cylindrical coordinate system using the Alternating Direction Implicit (ADI) method. We assume angular symmetry, making our computational box two dimensional with indices in the radial (r) direction: $i = 0 ... N_r$, and the height (z) direction: $j = 0 ... N_z$. Instead of diffusion with respect to time, we are propagating along a continuous Gaussian chain representation of a polymer, where $q(\textbf{r,z}, s)$ is an end integrated chain propagator and $s$ is the index that runs along the length of the chain: $s = 0 ... N_s$. The modified diffusion equation has the form: 
+ \begin{equation}
+\frac{\partial q(\textbf{r,z}; s)}{\partial s} = C \nabla^2 q(\textbf{r,z}; s) - \omega (\textbf{r,z}) q(\textbf{r,z}; s)
+ \end{equation}
+\noindent
+where $C$ is the diffusion coefficient that represents $R_g^2$, the radius of gyration of the polymer squared, or $b^2/6$, where $b$ is the persistence length of the polymer. The $\omega$-field represents an auxiliary field coupled to polymer density. This calculation is performed in the cylindrical coordinate system, which means that the Laplacian has the form:
+\begin{equation}
+\nabla^2 = \frac{1}{r} \frac{\partial}{\partial r} \left( r \frac{\partial}{\partial r} \right) + \frac{1}{r^2} \frac{\partial^2}{\partial \Theta^2} + \frac{\partial^2}{\partial z^2} 
+\end{equation}
+\noindent
+Since we are assuming angular ($\Theta$) symmetry, we remove the angular partial derivative from the Equation 2, and expand the radial component of the Laplacian:
+\begin{equation}
+\nabla^2 = \frac{\partial^2}{\partial r^2} + \frac{1}{r} \frac{\partial}{\partial r}   + \frac{\partial^2}{\partial z^2}
+\end{equation}
+\noindent
+Inserting Equation 3 into the modified diffusion equation gives:
+\begin{equation}
+\frac{\partial q(\textbf{r,z}; s)}{\partial s} = C \left(\frac{\partial^2}{\partial r^2} + \frac{1}{r} \frac{\partial}{\partial r}   + \frac{\partial^2}{\partial z^2} \right) q(\textbf{r,z}; s) - \omega (\textbf{r,z}) q(\textbf{r,z}; s)
+\end{equation}\\[12pt]
+
+
+Now that we have our modified diffusion equation in cylindrical coordinates with angular symmetry, we must define a computational grid of discrete points at which the continous function $q(\textbf{r},\textbf{z};s)$ can be sampled. Over the interval $\textbf{r} \in [0,L_r]$, we use $N_r$ equally spaced points:
+\begin{equation}
+r_i = i \Delta r, \quad i = 0 ... N_r - 1
+\end{equation}
+\noindent
+for $\Delta r = L_r/(N_r-1)$, the chosen grid spacing in the r-direction. Over the interval $\textbf{z} \in [0,L_z]$, we use $N_z$ equally spaced points:
+\begin{equation}
+z_j = j \Delta z, \quad j = 0 ... N_z - 1
+\end{equation}
+\noindent
+for $\Delta z = L_z/(N_z-1)$, the chosen grid spacing in the z-direction. We must also discretize the continous Gaussian chain over the interval $s \in [0,N]$ using $N_s$ equally spaced points:
+\begin{equation}
+s_n = n \Delta s, \quad n = 0 ... N_s -1
+\end{equation}
+\noindent
+for $\Delta s = N/(N_s-1)$, the contour step along $q(r,z;s)$. \\[12pt]
+
+
+ We now change our notation for the end-integrated chain propagator from it's continuous form, $q(r,z;s)$, to its discretized form, $q_{i,j}^n$ which we will use for the remainder of the derivation. As an initial condition, we set:
+\begin{equation}
+q_{i,j}^0 = 1 \quad \text{for} \quad i \in [0,N_r-1], \quad j \in [0,N_z-1]
+\end{equation}
+\noindent
+During the first step, we take a half step along $s$, and a step from $i$ to $i+1$ in the radial direction, while keeping the z-direction fixed.
+\begin{equation}
+q_{i,j}^n \rightarrow q_{i+1,j}^{n+1/2}
+\end{equation}
+\noindent
+During the second step, we take the solution from the first step and solve the in z-direction while keeping the radial direction fixed.
+\begin{equation}
+q_{i+1,j}^{n+1/2} \rightarrow q_{i+1,j+1}^{n+1}
+\end{equation}
+ 
+
+\section*{Step 1: Scan over r}
+The next step is to implement a finite differencing scheme to the modified diffusion equation.  For the half $s$ derivative, we use a forward Euler difference approximation:
+\begin{equation}
+\frac{\partial q}{\partial s} \Big|_{i,j;n} = \dfrac{q_{i,j}^{n+1/2} - q_{i,j}^n}{\Delta s/2}
+\end{equation}
+\noindent
+For the first order r-derivative, we use a central difference approximation:
+\begin{equation}
+\frac{\partial q}{\partial r} \Big|_{i,j;n+1/2} = \frac{1}{2\Delta r} \left( q_{i+1,j}^{n+1/2} - q_{i-1,j}^{n+1/2} \right)
+\end{equation}
+\noindent
+For the second order r-derivative and the second order z-derivative, we use another central difference approximation:
+\begin{align}
+\frac{\partial^2 q}{\partial r^2} \Big|_{i,j;n+1/2} &= \frac{1}{(\Delta r)^2} \left( q_{i+1,j}^{n+1/2} -2q_{i,j}^{n+1/2} + q_{i-1,j}^{n+1/2} \right) \\
+\frac{\partial^2 q}{\partial z^2} \Big|_{i,j;n} &= \frac{1}{(\Delta z)^2} \left( q_{i,j+1}^{n} -2q_{i,j}^n+ q_{i,j-1}^n \right)
+\end{align}
+\noindent
+Aftern inserting the central difference approximations into the modified diffusion equation, the modified diffusion equation now has the form:
+\begin{align}
+\frac{2}{\Delta s} (q_{i,j}^{n+1/2} - q_{i,j}^n) &=  \frac{C}{(\Delta r)^2} \left( q_{i+1,j}^{n+1/2} -2q_{i,j}^{n+1/2} + q_{i-1,j}^{n+1/2} \right) +  \frac{C}{2r\Delta r} \left( q_{i+1,j}^{n+1/2} - q_{i-1,j}^{n+1/2} \right) \\
+&+ \frac{C}{(\Delta z)^2} \left( q_{i,j+1}^{n} -2q_{i,j}^n+ q_{i,j-1}^n \right)  - \omega_{i,j} \left( \frac{q_{i,j}^{n+1/2} + q_{i,j}^{n}}{2} \right)
+\end{align}
+\noindent
+The next step is to separate the $n$ terms from the $n+1/2$ terms:
+\begin{align}
+&\frac{2}{\Delta s}q_{i,j}^{n+1/2}  - \frac{C}{(\Delta r)^2} \left( q_{i+1,j}^{n+1/2} -2q_{i,j}^{n+1/2} + q_{i-1,j}^{n+1/2} \right) - \frac{C}{2r\Delta r} \left( q_{i+1,j}^{n+1/2} - q_{i-1,j}^{n+1/2} \right)  + \frac{1}{2} \omega_{i,j} q_{i,j}^{n+1/2} \\
+& = \frac{2}{\Delta s} q_{i,j}^n  + \frac{C}{(\Delta z)^2} \left( q_{i,j+1}^{n} -2q_{i,j}^n+ q_{i,j-1}^n \right) - \frac{1}{2} \omega_{i,j} q_{i,j}^{n} 
+\end{align}
+\noindent
+The next step is to group the coefficients by their coordinates ($i,j$). We multiply the entire expression by $\Delta s/2$ and use functions $\alpha_{1,0,-1}$ and $\beta_{1,0,-1}$ to simplify the expression:
+\begin{equation}
+\alpha_1 q_{i+1,j}^{n+1/2} + \alpha_0 q_{i,j}^{n+1/2} + \alpha_{-1} q_{i-1,j}^{n+1/2} = \beta_1 q_{i,j+1}^{n+1/2} + \beta_0 q_{i,j}^{n+1/2} + \beta_{-1} q_{i,j-1}^{n+1/2}
+\end{equation}
+\noindent
+where:
+\begin{align}
+\alpha_1 &\equiv - \dfrac{C (\Delta s)}{2(\Delta r)^2} - \dfrac{C (\Delta s)}{4r(\Delta r)} \\
+\alpha_0 &\equiv 1 + \dfrac{C (\Delta s)}{(\Delta r)^2} + \dfrac{(\Delta s)}{4} \omega_{i,j} \\
+\alpha_{-1}  &\equiv - \dfrac{C (\Delta s)}{2(\Delta r)^2} + \dfrac{C (\Delta s)}{4r(\Delta r)} \\
+\beta_1  &\equiv \dfrac{C (\Delta s)}{2(\Delta z)^2} \\
+\beta_0  &\equiv 1 - \dfrac{C (\Delta s)}{(\Delta z)^2} - \dfrac{(\Delta s)}{4} \omega_{i,j} \\
+\beta_{-1}  &\equiv \dfrac{C (\Delta s)}{2(\Delta z)^2} 
+\end{align} \\[12pt]
+
+We implement a zero derivative boundary condition (Neumann boundary condition). The mathematical form of this boundary condition is the following:
+\noindent
+\begin{equation}
+\dfrac{\partial q_{0,j}}{\partial r} = \dfrac{\partial q_{N_r-1,j}}{\partial r} = \dfrac{\partial q_{i,0}}{\partial z} = \dfrac{\partial q_{i,N_z-1}}{\partial z} = 0
+\end{equation}
+\noindent
+Returning to the definition of the central difference approximation for the first partial derivative of r (or z), this requires that $q_{1,j} = q_{-1,j}$, $q_{N_r-2,j} = q_{N_r,j}$, $q_{i,1} = q_{i,-1}$, and $q_{i,N_z-2} = q_{i,N_z}$ for all $s$. We are now ready to write the first step of the ADI method in its matrix form. The idea behind this step is that we choose any $j \in [0,N_z-1]$, then solve in the r-direction. Typically we start with $j=0$, then increase $j$ by one until we reach $j=N_z-1$. There are three different $j$-cases that must be considered. The first case is$j=0$. In this case we are starting from the $(0,0)$ corner, and two boundary conditions apply. The matrix version of the modified diffusion equation is the following:
+
+
+\[  \begin{bmatrix}
+q_{0,0}^{n+1/2} \\[0.5em]
+q_{1,0}^{n+1/2} \\[0.5em]
+\vdots \\[0.5em]
+q_{N_r-2,0}^{n+1/2} \\[0.5em]
+q_{Nr-1,0}^{n+1/2} \\[0.5em]
+\end{bmatrix} = 
+%
+\begin{bmatrix}
+\alpha_0 & (\alpha_1+\alpha_{-1}) & 0 & \cdots & 0 \\[0.5em]
+\alpha_{-1} & \alpha_0 & \alpha_{-1} &\cdots &0 \\[0.5em]
+\vdots & \ddots & \ddots & \ddots & \vdots \\[0.5em]
+0 & \cdots & \alpha_{-1} & \alpha_0 & \alpha_1  \\[0.5em]
+0 & \cdots & 0 & (\alpha_1+\alpha_{-1}) & \alpha_0 \\[0.5em]
+\end{bmatrix}^{-1} 
+%
+\begin{bmatrix}
+2\beta_1q_{0,1}^{n}+ \beta_0q_{0,0}^{n} \\[0.5em]
+2\beta_1q_{1,1}^{n}+ \beta_0q_{1,0}^{n} \\[0.5em]
+\vdots \\[0.5em]
+2\beta_1q_{N_r-2,1}^{n}+\beta_0q_{N_r-2,0}^{n} \\[0.5em]
+2\beta_1q_{N_r-1,1}^{n}+ \beta_0q_{N_r-1,0}^{n} \\[0.5em]
+\end{bmatrix}
+\]
+\noindent
+The second case corresponds to $j \in 1 ... N_z -2$, all the interior points. For this case, the matrix version of the modified diffusion equation is the following: 
+\[  \begin{bmatrix}
+q_{0,0}^{n+1/2} \\[0.5em]
+q_{1,0}^{n+1/2} \\[0.5em]
+\vdots \\[0.5em]
+q_{N_r-2,0}^{n+1/2} \\[0.5em]
+q_{Nr-1,0}^{n+1/2} \\[0.5em]
+\end{bmatrix} = 
+%
+\begin{bmatrix}
+\alpha_0 & (\alpha_1+\alpha_{-1}) & 0 & \cdots & 0 \\[0.5em]
+\alpha_{-1} & \alpha_0 & \alpha_{-1} &\cdots &0 \\[0.5em]
+\vdots & \ddots & \ddots & \ddots & \vdots \\[0.5em]
+0 & \cdots & \alpha_{-1} & \alpha_0 & \alpha_1  \\[0.5em]
+0 & \cdots & 0 & (\alpha_1+\alpha_{-1}) & \alpha_0 \\[0.5em]
+\end{bmatrix}^{-1} 
+%
+\begin{bmatrix}
+\beta_1q_{0,j+1}^{n}+ \beta_0q_{0,j}^{n} + \beta_{-1}q_{0,j-1}^{n}  \\[0.5em]
+\beta_1q_{1,j+1}^{n}+ \beta_0q_{1,j}^{n} + \beta_{-1}q_{1,j-1}^{n}   \\[0.5em]
+\vdots \\[0.5em]
+\beta_1q_{N_r-2,j+1}^{n}+ \beta_0q_{N_r-2,j}^{n} + \beta_{-1}q_{N_r-2,j-1}^{n}  \\[0.5em]
+\beta_1q_{N_r-1,j+1}^{n}+ \beta_0q_{N_r-1,j}^{n} + \beta_{-1}q_{N_r-1,j-1}^{n} \\[0.5em]
+\end{bmatrix}
+\]
+\noindent
+The third case is if $j=N_z-1$. Similarly to the first case, we are in a corner and two boundary conditions apply. In this case, the matrix version of the modified diffusion equation is:
+\[  \begin{bmatrix}
+q_{0,0}^{n+1/2} \\[0.5em]
+q_{1,0}^{n+1/2} \\[0.5em]
+\vdots \\[0.5em]
+q_{N_r-2,0}^{n+1/2} \\[0.5em]
+q_{Nr-1,0}^{n+1/2} \\[0.5em]
+\end{bmatrix} = 
+%
+\begin{bmatrix}
+\alpha_0 & (\alpha_1+\alpha_{-1}) & 0 & \cdots & 0 \\[0.5em]
+\alpha_{-1} & \alpha_0 & \alpha_{-1} &\cdots &0 \\[0.5em]
+\vdots & \ddots & \ddots & \ddots & \vdots \\[0.5em]
+0 & \cdots & \alpha_{-1} & \alpha_0 & \alpha_1  \\[0.5em]
+0 & \cdots & 0 & (\alpha_1+\alpha_{-1}) & \alpha_0 \\[0.5em]
+\end{bmatrix}^{-1} 
+%
+\begin{bmatrix}
+2\beta_{-1}q_{0,N_z-2}^{n}+ \beta_0q_{0,N_z-1}^{n} \\[0.5em]
+2\beta_{-1}q_{1,N_z-2}^{n}+ \beta_0q_{1,N_z-1}^{n} \\[0.5em]
+\vdots \\[0.5em]
+2\beta_{-1}q_{N_r-2,N_z-2}^{n}+\beta_0q_{N_r-2,N_z-1}^{n} \\[0.5em]
+2\beta_{-1}q_{N_r-1,N_z-2}^{n}+ \beta_0q_{N_r-1,N_z-1}^{n} \\[0.5em]
+\end{bmatrix}
+\]
+\noindent
+In all three cases, this matrix algebra problem can be solved efficiently using a tridiagonal matrix algorithm (TDMA) in $O(N_r)$ steps. After scanning over the r-direction for all $j$, we now move to step 2, from $n+1/2$ to $n+1$. 
+
+\section*{Step 2: Scan over z}
+
+Much of this section is similar to Step 1. However, there are a few small differences resulting from the use of the Laplacian operator in 2 dimensional cylindrical coordinates. Similarly to Step 1, we use a forward Euler difference approximation for the second half s derivative:
+\begin{equation}
+\frac{\partial q}{\partial s} \Big|_{i,j;n} = \dfrac{q_{i,j}^{n+1} - q_{i,j}^{n+1/2}}{\Delta s/2}
+\end{equation}
+\noindent
+We keep the radial direction stationary, so the r-derivatives are the same. See Equations 11 and 12. The second order z derivative changes to:
+\begin{equation}
+\frac{\partial^2 q}{\partial z^2} \Big|_{i,j;n} = \frac{1}{(\Delta z)^2} \left( q_{i,j+1}^{n+1} -2q_{i,j}^{n+1}+ q_{i,j-1}^{n+1} \right)
+\end{equation}
+\noindent
+The modified diffusion equation now has the form:
+\begin{align}
+\frac{2}{\Delta s} (q_{i,j}^{n+1} - q_{i,j}^{n+1/2}) &=  \frac{C}{(\Delta r)^2} \left( q_{i+1,j}^{n+1/2} -2q_{i,j}^{n+1/2} + q_{i-1,j}^{n+1/2} \right) +  \frac{C}{2r\Delta r} \left( q_{i+1,j}^{n+1/2} - q_{i-1,j}^{n+1/2} \right) \\
+&=  + \frac{C}{(\Delta z)^2} \left( q_{i,j+1}^{n+1} -2q_{i,j}^{n+1} + q_{i,j-1}^{n+1} \right)  - \omega_{i,j} \left( \frac{q_{i,j}^{n+1} + q_{i,j}^{n+1/2}}{2} \right)
+\end{align}
+\noindent
+The next step is to separate the $n+1$ terms from the $n+1/2$ terms:
+\begin{align}
+&\frac{2}{\Delta s} q_{i,j}^{n+1} - \frac{C}{(\Delta z)^2} \left( q_{i,j+1}^{n+1} -2q_{i,j}^{n+1} + q_{i,j-1}^{n+1} \right) + \frac{\omega_{i,j}}{2} q_{i,j}^{n+1} \\
+& =\frac{2}{\Delta s} q_{i,j}^{n+1/2} + \frac{C}{(\Delta r)^2} \left( q_{i+1,j}^{n+1/2} -2q_{i,j}^{n+1/2} + q_{i-1,j}^{n+1/2} \right) + \frac{C}{2r\Delta r} \left( q_{i+1,j}^{n+1/2} - q_{i-1,j}^{n+1/2} \right) - \frac{\omega_{i,j}}{2} q_{i,j}^{n+1/2}
+\end{align}
+\noindent
+The next step is to group the coefficients by their coordinates ($i,j$). We multiply the entire expression by $\Delta s/2$ and use functions $\gamma_{1,0,-1}$ and $\sigma_{1,0,-1}$ to simplify the expression:
+\begin{equation}
+\gamma_1 q_{i,j+1}^{s+1} + \gamma_0 q_{i,j}^{s+1} + \gamma_{-1} q_{i,j-1}^{s+1} = \sigma_1 q_{i+1,j}^{s+1/2} + \sigma_0 q_{i,j}^{s+1/2} + \sigma_{-1} q_{i-1,j}^{s+1/2}
+\end{equation}
+\noindent 
+where the $\gamma$ and $\sigma$ functions are:
+\begin{align}
+\gamma_1 &\equiv -\dfrac{C (\Delta s)}{2(\Delta z)^2} \\
+\gamma_0 &\equiv 1 + \dfrac{C(\Delta s)}{(\Delta z)^2} + \dfrac{(\Delta s)}{4} \omega_{i,j} \\
+\gamma_{-1} &\equiv -\dfrac{C (\Delta s)}{2(\Delta z)^2} \\
+\sigma_1 &\equiv \dfrac{C (\Delta s)}{2(\Delta r)^2}  + \dfrac{C(\Delta s)}{4r(\Delta r)} \\
+\sigma_0 &\equiv 1 - \dfrac{C (\Delta s)}{(\Delta r)^2} - \dfrac{(\Delta s)}{4} \omega_{i,j} \\
+\sigma_{-1}  &\equiv \dfrac{C (\Delta s)}{2(\Delta r)^2}  - \dfrac{C(\Delta s)}{4r(\Delta r)} 
+\end{align} \\[12pt]
+
+We are implementing a zero-derivative boundary condition in our computational box. During this step, we choose any $i$, and solve in the $j$ direction. Identically to step 1, there are three cases. In the first case, $i=0$. The matrix formulation for the modified diffusion equation has the following form:
+\[  \begin{bmatrix}
+q_{0,0}^{n+1} \\[0.5em]
+q_{0,1}^{n+1} \\[0.5em]
+\vdots \\[0.5em]
+q_{0,N_z-2}^{n+1} \\[0.5em]
+q_{0,N_z-1}^{n+1} \\[0.5em]
+\end{bmatrix} = 
+%
+\begin{bmatrix}
+\gamma_0 & 2\gamma_1 & 0 & \cdots & 0 \\[0.5em]
+\gamma_{-1} & \gamma_0 & \gamma_{-1} &\cdots &0 \\[0.5em]
+\vdots & \ddots & \ddots & \ddots & \vdots \\[0.5em]
+0 & \cdots & \gamma_{-1} & \gamma_0 & \gamma_1  \\[0.5em]
+0 & \cdots & 0 & 2\gamma_1 & \gamma_0 \\[0.5em]
+\end{bmatrix}^{-1} 
+%
+\begin{bmatrix}
+(\sigma_1+\sigma_{-1})q_{1,0}^{n+1/2}+ \sigma_0q_{0,0}^{n+1/2} \\[0.5em]
+(\sigma_1+\sigma_{-1})q_{1,1}^{n+1/2}+ \sigma_0q_{0,1}^{n+1/2} \\[0.5em]
+\vdots \\[0.5em]
+(\sigma_1+\sigma_{-1})q_{1,N_z-2}^{n+1/2}+\sigma_0q_{0,N_z-2}^{n+1/2} \\[0.5em]
+(\sigma_1+\sigma_{-1})q_{1,N_z-1}^{n+1/2}+ \sigma_0q_{0,N_z-1}^{n+1/2} \\[0.5em]
+\end{bmatrix}
+\]
+\noindent
+The second case is if we choose $i \in 1 \cdots N_z -2$. This corresponds to all the interior points. For this case, the matrix version of the modified diffusion equation is the following: 
+\[  \begin{bmatrix}
+q_{i,0}^{n+1} \\[0.5em]
+q_{i,1}^{n+1} \\[0.5em]
+\vdots \\[0.5em]
+q_{i,N_z-2}^{n+1} \\[0.5em]
+q_{i,N_z-1}^{n+1} \\[0.5em]
+\end{bmatrix} = 
+%
+\begin{bmatrix}
+\gamma_0 & 2\gamma_1 & 0 & \cdots & 0 \\[0.5em]
+\gamma_{-1} & \gamma_0 & \gamma_{-1} &\cdots &0 \\[0.5em]
+\vdots & \ddots & \ddots & \ddots & \vdots \\[0.5em]
+0 & \cdots & \gamma_{-1} & \gamma_0 & \gamma_1  \\[0.5em]
+0 & \cdots & 0 & 2\gamma_1 & \gamma_0 \\[0.5em]
+\end{bmatrix}^{-1} 
+%
+\begin{bmatrix}
+\sigma_1q_{i+1,0}^{n+1/2}+ \sigma_0q_{i,0}^{n+1/2} +\sigma_{-1}q_{i-1,0}^{n+1/2} \\[0.5em]
+\sigma_1q_{i+1,1}^{n+1/2}+ \sigma_0q_{i,1}^{n+1/2} +\sigma_{-1}q_{i-1,1}^{n+1/2}  \\[0.5em]
+\vdots \\[0.5em]
+\sigma_1q_{i+1,N_z-2}^{n+1/2}+ \sigma_0q_{i,N_z-2}^{n+1/2} +\sigma_{-1}q_{i-1,N_z-2}^{n+1/2}  \\[0.5em]
+\sigma_1q_{i+1,N_z-1}^{n+1/2}+ \sigma_0q_{i,N_z-1}^{n+1/2} +\sigma_{-1}q_{i-1,N_z-1}^{n+1/2}  \\[0.5em]
+\end{bmatrix}
+\]
+\noindent
+The third case is if we choose j  = $N_z-1$. Similarly to the first case, we start in a corner where two boundary conditions apply. In this case, the matrix version of the modified diffusion equation is:
+\[  \begin{bmatrix}
+q_{0,0}^{n+1} \\[0.5em]
+q_{0,1}^{n+1} \\[0.5em]
+\vdots \\[0.5em]
+q_{0,N_z-2}^{n+1} \\[0.5em]
+q_{0,N_z-1}^{n+1} \\[0.5em]
+\end{bmatrix} = 
+%
+\begin{bmatrix}
+\gamma_0 & 2\gamma_1 & 0 & \cdots & 0 \\[0.5em]
+\gamma_{-1} & \gamma_0 & \gamma_{-1} &\cdots &0 \\[0.5em]
+\vdots & \ddots & \ddots & \ddots & \vdots \\[0.5em]
+0 & \cdots & \gamma_{-1} & \gamma_0 & \gamma_1  \\[0.5em]
+0 & \cdots & 0 & 2\gamma_1 & \gamma_0 \\[0.5em]
+\end{bmatrix}^{-1} 
+%
+\begin{bmatrix}
+(\sigma_1+\sigma_{-1})q_{N_r-2,0}^{n+1/2}+ \sigma_0q_{N_r-1,0}^{n+1/2} \\[0.5em]
+(\sigma_1+\sigma_{-1})q_{N_r-2,1}^{n+1/2}+ \sigma_0q_{N_r-1,1}^{n+1/2} \\[0.5em]
+\vdots \\[0.5em]
+(\sigma_1+\sigma_{-1})q_{N_r-2,N_z-2}^{n+1/2}+\sigma_0q_{N_r-1,N_z-2}^{n+1/2} \\[0.5em]
+(\sigma_1+\sigma_{-1})q_{N_r-2,N_z-1}^{n+1/2}+ \sigma_0q_{N_r-1,N_z-1}^{n+1/2} \\[0.5em]
+\end{bmatrix}
+\] \\[12pt]
+
+We solve these matrix algebra problems with the TDMA algorithm. After scanning over the z-direction for all $i$, we are  at the end of the two step ADI process and have moved along the chain from $n$ to $n+1$. The next step is to repeat steps 1 and 2 along the length of the Gaussian chain until we reach $n=N_s-1$. 
+ 
+\end{document}
